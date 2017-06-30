@@ -56,7 +56,6 @@ if [ $is_running -eq 0 ]; then
     duplicity \
         --full-if-older-than=${FULL_EVERY} \
         ${GPG_SWITCH} \
-        --volsize=256 \
 	--include-globbing-filelist=/usr/local/etc/duplicity-backup.list \
         ${SOURCE} ${DEST} >> ${DAILYLOGFILE} 2>&1
 
