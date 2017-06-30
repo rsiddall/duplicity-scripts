@@ -1,16 +1,11 @@
 #!/bin/bash
 
+source "/usr/local/etc/duplicity-backup.cfg"
+
 # Export some ENV variables so you don't have to type anything
-export AWS_ACCESS_KEY_ID=""
-export AWS_SECRET_ACCESS_KEY=""
-export PASSPHRASE=""
-
-# Your GPG key
-GPG_KEY=
-
-# The S3 destination followed by bucket name
-DEST="s3://s3.amazonaws.com//"
-
+export AWS_ACCESS_KEY_ID
+export AWS_SECRET_ACCESS_KEY
+export PASSPHRASE
 
 # Set up some variables for logging
 LOGFILE="/var/log/duplicity/backup.log"
@@ -18,7 +13,6 @@ DAILYLOGFILE="/var/log/duplicity/backup.daily.log"
 FULLBACKLOGFILE="/var/log/duplicity/backup.full.log"
 HOST=`hostname`
 DATE=`date +%Y-%m-%d`
-MAILADDR="admin@example.com"
 TODAY=$(date +%d%m%Y)
 
 is_running=$(ps -ef | grep duplicity  | grep python | wc -l)
@@ -41,34 +35,29 @@ if [ $is_running -eq 0 ]; then
             echo "$stamp: $*" >> ${DAILYLOGFILE}
     }
 
-    # How long to keep backups for
-    OLDER_THAN="1M"
-
-    # The source of your backup
-    SOURCE=/
-
-    FULL=
-    tail -1 ${FULLBACKLOGFILE} | grep ${TODAY} > /dev/null
-    if [ $? -ne 0 -a $(date +%d) -eq 1 ]; then
-            FULL=full
-    fi;
+    if [ "${GPG_KEY}x" != "x" ]; then
+        GPG_SWITCH="--encrypt-key=${GPG_KEY} --sign-key=${GPG_KEY}"
+    else
+        GPG_SWITCH="--no-encryption"
+    fi
 
     trace "Backup for local filesystem started"
 
     trace "... removing old backups"
 
-    duplicity remove-older-than ${OLDER_THAN} ${DEST} >> ${DAILYLOGFILE} 2>&1
+    if [ "${OLDER_THAN}x" != "x" ]; then
+        duplicity remove-older-than ${OLDER_THAN} ${DEST} >> ${DAILYLOGFILE} 2>&1
+    else
+        duplicity remove-all-but-n-full ${RETAIN_N_FULL} ${DEST} >> ${DAILYLOGFILE} 2>&1
+    fi
 
     trace "... backing up filesystem"
 
     duplicity \
-        ${FULL} \
-        --encrypt-key=${GPG_KEY} \
-        --sign-key=${GPG_KEY} \
-        --include=/var/rsnap-mysql \
-        --include=/var/www \
-        --include=/etc \
-        --exclude=/** \
+        --full-if-older-than=${FULL_EVERY} \
+        ${GPG_SWITCH} \
+        --volsize=256 \
+	--include-globbing-filelist=/usr/local/etc/duplicity-backup.list \
         ${SOURCE} ${DEST} >> ${DAILYLOGFILE} 2>&1
 
     trace "Backup for local filesystem complete"
