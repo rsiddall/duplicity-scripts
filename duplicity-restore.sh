@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source "/usr/local/etc/duplicty-backup.cfg"
+source "/usr/local/etc/duplicity-backup.cfg"
 
 # Export some ENV variables so you don't have to type anything
 export AWS_ACCESS_KEY_ID
